@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client"
 import { artistsData } from "./songsData"
+// eslint-disable-next-line import/order
+import bcrypt from "bcrypt"
 
 const prisma = new PrismaClient()
 
@@ -16,6 +18,34 @@ const run = async () => {
               name: song.name,
               duration: song.duration,
               url: song.url,
+            })),
+          },
+        },
+      })
+    })
+  )
+
+  const salt = bcrypt.genSaltSync()
+  const user = await prisma.user.upsert({
+    where: { email: "user@test.com" },
+    update: {},
+    create: {
+      email: "user@test.com",
+      password: bcrypt.hashSync("password", salt),
+    },
+  })
+  const songs = await prisma.song.findMany({})
+  await Promise.all(
+    new Array(10).fill(1).map(async (_, i) => {
+      return prisma.playlist.create({
+        data: {
+          name: `Playlist #${i + 1}`,
+          user: {
+            connect: { id: user.id },
+          },
+          songs: {
+            connect: songs.map((song) => ({
+              id: song.id,
             })),
           },
         },
